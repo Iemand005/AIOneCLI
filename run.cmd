@@ -1,4 +1,4 @@
 @echo off
-cd build/%1/
-AIOneCLI.exe
+cd build/Debug/
+AIOneCLI.exe %*
 cd ../..

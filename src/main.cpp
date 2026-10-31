@@ -3,6 +3,7 @@
 
 #include <llama.h>
 #include <ModelManager.hpp>
+#include <argparse/argparse.hpp>
 
 void onModelLoadProgress(const float progress) {
     std::cout << "\rLoading model " << progress << std::flush;
@@ -15,6 +16,24 @@ void onModelLoadDone() {
 int main(int argc, char* argv[]) {
     std::cout << "Hello world!" << std::endl;
 
+
+
+    argparse::ArgumentParser program("AIOneCLI");
+
+    program.add_argument("-m", "--model")
+        .help("path to the model file")
+        .required();
+
+    try {
+        program.parse_args(argc, argv);
+    } catch (const std::exception& err) {
+        std::cerr << err.what() << std::endl;
+        std::cerr << program;
+        return 1;
+    }
+
+    std::string modelPath = program.get<std::string>("--model");
+
     ModelManager manager;
     LLModelOptionsAsync options;
     options.device = PreferredDevice::DGPU;
@@ -22,7 +41,7 @@ int main(int argc, char* argv[]) {
     options.onDone = onModelLoadDone;
     options.useMmap = true;
 
-    manager.loadLLMAsync("F:\\AIOne\\AIOneMetaProject\\AIOneCLI\\models\\Qwen3-0.6B-Q4_K_M.gguf", options);
+    manager.loadLLMAsync(modelPath, options);
 
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     std::cin.get();
