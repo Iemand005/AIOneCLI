@@ -8,7 +8,7 @@ CLI client using AIOne as engine.
 
 ```bash
 cmake -S . -B build
-cmake --build build --config Release
+cmake --build build --config Release -j %NUMBER_OF_PROCESSORS%
 ```
 
 ### Vulkan
@@ -17,7 +17,7 @@ You can additionally pass `-DAIONE_NOCPU=ON` for GPU-only if you prefer a smalle
 
 ```bash
 cmake -S . -B build -DAIONE_VULKAN=ON
-cmake --build build --config Release
+cmake --build build --config Release -j %NUMBER_OF_PROCESSORS%
 ```
 
 ### CUDA
@@ -28,5 +28,5 @@ Replace `<your compute capability>` with the number (without the dot) from https
 
 ```bash
 cmake -S . -B build -DAIONE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=<your compute capability>
-cmake --build build --config Release
+cmake --build build --config Release -j %NUMBER_OF_PROCESSORS%
 ```

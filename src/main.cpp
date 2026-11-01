@@ -1,15 +1,46 @@
 #include "Main.hpp"
 #include <iostream>
 #include <limits>
+#include <csignal>
+#include <condition_variable>
+#include <mutex>
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 #include <ModelManager.hpp>
+#include <ModelFactory.hpp>
 #include <argparse/argparse.hpp>
 #include <hwinfo/hwinfo.h>
+#include <ggml-backend.h>
 
 #include "CLIModelManager.hpp"
+#include "ANSI.hpp"
+#include "Version.hpp"
+
+std::condition_variable cliExitCV;
+std::mutex cliExitMutex;
+bool cliExitBool = false;
+
+void signal_handler(int signal) {
+    if (signal == SIGINT) {
+        std::lock_guard<std::mutex> lock(cliExitMutex);
+        cliExitBool = true;
+        cliExitCV.notify_all();
+    }
+}
 
 int main(int argc, char* argv[]) {
-    argparse::ArgumentParser program("AIOneCLI");
+    std::signal(SIGINT, signal_handler);
+    
+#ifdef _WIN32
+    // set to UTF-8 cuz Windows doesn't do that by default ofc (for ASCII art)
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+
+
+    argparse::ArgumentParser program("AIOneCLI", AIONE_CLI_VERSION.c_str());
 
     program.add_argument("-m", "--model")
         .help("path to the model file")
@@ -44,6 +75,10 @@ int main(int argc, char* argv[]) {
         .default_value(512);
     program.add_argument("--recommended", "-r")
         .help("automatically applies --mmap and --flash-attention")
+        .default_value(false)
+        .implicit_value(true);
+    program.add_argument("--no-logo", "--quiet", "-q")
+        .help("hides the startup logo and info")
         .default_value(false)
         .implicit_value(true);
     program.add_argument("rest")
@@ -122,6 +157,33 @@ int main(int argc, char* argv[]) {
 
 
     CLIModelManager modelManager(program.get<std::string>("--model"));
+
+    if (!program.get<bool>("--no-logo")) {
+        // get available backends
+        size_t backendCount = ggml_backend_reg_count();
+        std::string backends = "";
+
+        for (size_t i = 0; i < backendCount; i++) {
+            const char *name = ggml_backend_reg_name(ggml_backend_reg_get(i));
+
+            if (backends != "") {
+                backends += ", ";
+            }
+            
+            backends += name;
+        }
+
+        std::cout
+            << std::endl
+            << ANSI::RESET << "   █████╗  ██╗  ██╗" << std::endl
+            << ANSI::RESET << "  ██╔══██╗ ██║ ███║  " << ANSI::FG_BLACK << "\\" << std::endl
+            << ANSI::RESET << "  ███████║ ██║ ╚██║  " << ANSI::FG_BLACK << "|> " << ANSI::FG_WHITE << ANSI::BOLD << "AIOne CLI v" << AIONE_CLI_VERSION << std::endl
+            << ANSI::RESET << "  ██╔══██║ ██║  ██║  " << ANSI::FG_BLACK << "|> " << ANSI::FG_WHITE << "Available backends: " << backends << std::endl
+            << ANSI::RESET << "  ██║  ██║ ██║  ██║  " << ANSI::FG_BLACK << "/" << std::endl
+            << ANSI::RESET << "  ╚═╝  ╚═╝ ╚═╝  ╚═╝" << std::endl
+            << std::endl;
+    }
+    
     LLModelOptionsAsync options;
     options.device = device;
     options.offloadLayers = defaultVal("--gpu-layers", 0, -1);
@@ -130,12 +192,18 @@ int main(int argc, char* argv[]) {
     options.flashAttention = applyRecommended("--flash-attention");
     options.contextLength = defaultVal("--context-size", 1, 1024);
     options.evalBatchSize = defaultVal("--batch-size", 1, 512);
-    modelManager.loadModel(options, []() {
-        std::cout << "Hello world!" << std::endl;
+    modelManager.loadModel(options, [&prompt]() {
+        
     });
 
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    std::cin.get();
+
+    // wait until CTRL+C is pressed to exit
+    {
+        std::unique_lock<std::mutex> lock(cliExitMutex);
+        cliExitCV.wait(lock, []{
+            return cliExitBool;
+        });
+    }
 
     return 0;
 }

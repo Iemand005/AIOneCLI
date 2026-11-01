@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.20)
-project(AIOneCLI LANGUAGES C CXX)
+project(AIOneCLII VERSION 1.0.0 LANGUAGES C CXX)
+
+# Generate version file
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Version.hpp.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/src/Version.hpp"
+)
 
 # To speed up compilation for hwinfo cuz we only need CPU core info
 set(HWINFO_COMPUTER OFF CACHE BOOL "" FORCE)
@@ -36,6 +42,7 @@ add_executable(AIOneCLI ${CORE_SOURCES})
 
 # Include header files
 target_include_directories(AIOneCLI PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_include_directories(AIOneCLI PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/src")
 target_link_libraries(AIOneCLI PRIVATE AIOneCore) 
 target_link_libraries(AIOneCLI PRIVATE argparse::argparse)
 target_link_libraries(AIOneCLI PRIVATE lfreist-hwinfo::hwinfo)

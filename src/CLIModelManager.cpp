@@ -6,7 +6,7 @@
 #include "ANSI.hpp"
 
 CLIModelManager::CLIModelManager(const std::string& path) : modelPath(path) {
-
+    manager.initLlama();
 }
 
 void CLIModelManager::loadModel(LLModelOptionsAsync options, FinishedCallback onDone) {
