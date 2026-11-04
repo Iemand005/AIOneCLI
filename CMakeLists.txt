@@ -21,6 +21,8 @@ set(HWINFO_NETWORK OFF CACHE BOOL "" FORCE)
 # For metaproject
 set(GIT_EXECUTABLE "GIT_EXECUTABLE-NOTFOUND" CACHE FILEPATH "Disable Git tracking in dependencies" FORCE)
 add_subdirectory("../AIOne" "${CMAKE_CURRENT_BINARY_DIR}/AIOne")
+
+# Dependencies
 add_subdirectory("external/argparse" "${CMAKE_CURRENT_BINARY_DIR}/external_argparse")
 add_subdirectory("external/hwinfo" "${CMAKE_CURRENT_BINARY_DIR}/external_hwinfo")
 

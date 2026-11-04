@@ -1,4 +1,4 @@
-#include "CLIModelManager.hpp"
+#include "TermLLModelManager.hpp"
 #include <iostream>
 #include <vector>
 
@@ -6,16 +6,16 @@
 
 #include "ANSI.hpp"
 
-CLIModelManager::CLIModelManager(const std::string& path) : modelPath(path) {
+TermLLModelManager::TermLLModelManager(const std::string& path) : modelPath(path) {
     manager.initLlama();
 }
 
-void CLIModelManager::loadModel(bool quiet, LLModelOptionsAsync options, FinishedCallback onDone) {
+void TermLLModelManager::loadModel(bool quiet, LLModelOptionsAsync options, FinishedCallback onDone) {
     if (!quiet) {
         options.onProgress = onModelLoadProgress;
     }
 
-    options.onDone = [this, quiet, onDone = std::move(onDone)]() {
+    options.onDone = [this, quiet, &onDone = std::move(onDone)]() {
         if (!quiet) {
             onModelLoadDone();
         }
@@ -26,7 +26,7 @@ void CLIModelManager::loadModel(bool quiet, LLModelOptionsAsync options, Finishe
     manager.loadLLMAsync(modelPath, options);
 }
 
-void CLIModelManager::sendMessage(bool quiet, std::string role, std::string text, bool hasSystemPrompt, std::string systemPrompt, TextGenOptions options) {
+void TermLLModelManager::sendMessage(std::string role, std::string text, bool hasSystemPrompt, std::string systemPrompt, TextGenOptions options) {
     LLModel *llm = manager.getLLM();
     std::vector<Message> messages(hasSystemPrompt ? 2 : 1);
     uint8_t idx = 0;
@@ -46,7 +46,7 @@ void CLIModelManager::sendMessage(bool quiet, std::string role, std::string text
 }
 
 
-void CLIModelManager::onModelLoadProgress(const float progress) {
+void TermLLModelManager::onModelLoadProgress(const float progress) {
     std::cout
         << ANSI::CARRIAGE_RETURN
         << ANSI::CLEAR_LINE
@@ -56,7 +56,7 @@ void CLIModelManager::onModelLoadProgress(const float progress) {
         << std::flush;
 }
 
-void CLIModelManager::onModelLoadDone() {
+void TermLLModelManager::onModelLoadDone() {
     std::cout
         << ANSI::CARRIAGE_RETURN
         << ANSI::CLEAR_LINE

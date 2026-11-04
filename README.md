@@ -11,6 +11,8 @@ cmake -S . -B build
 cmake --build build --config Release -j %NUMBER_OF_PROCESSORS%
 ```
 
+For Stable Diffusion support, run `cmake -S . -B build -DAIONE_ENABLE_STABLE_DIFFUSION=ON` instead.
+
 ### Vulkan
 
 You can additionally pass `-DAIONE_NOCPU=ON` for GPU-only if you prefer a smaller binary (not recommended because you won't have CPU fallback if model exceeds VRAM).
@@ -20,6 +22,8 @@ cmake -S . -B build -DAIONE_VULKAN=ON
 cmake --build build --config Release -j %NUMBER_OF_PROCESSORS%
 ```
 
+For Stable Diffusion support, run `cmake -S . -B build -DAIONE_ENABLE_STABLE_DIFFUSION=ON` instead.
+
 ### CUDA
 
 You can additionally pass `-DAIONE_NOCPU=ON` for GPU-only if you prefer a smaller binary (not recommended because you won't have CPU fallback if model exceeds VRAM).
@@ -28,5 +32,14 @@ Replace `<your compute capability>` with the number (without the dot) from https
 
 ```bash
 cmake -S . -B build -DAIONE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=<your compute capability>
+cmake --build build --config Release -j %NUMBER_OF_PROCESSORS%
+```
+
+For Stable Diffusion support, run `cmake -S . -B build -DAIONE_ENABLE_STABLE_DIFFUSION=ON` instead.
+
+E.g., for Nvidia Blackwell architecture (like RTX 5090), the full command is:
+
+```bash
+cmake -S . -B build -DAIONE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=120 -DAIONE_ENABLE_STABLE_DIFFUSION=ON
 cmake --build build --config Release -j %NUMBER_OF_PROCESSORS%
 ```
