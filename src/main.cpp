@@ -403,8 +403,6 @@ int main(int argc, char* argv[]) {
                     imageOpts.seed = localArgs->get<int>("--seed");
                 }
 
-                std::cout << posPrompt << std::endl;
-                std::cout << negPrompt << std::endl;
                 modelManager.createImage(true, posPrompt, negPrompt, localArgs->present<std::string>("--output-path"), imageOpts);
                 exitCli();
             } else {
