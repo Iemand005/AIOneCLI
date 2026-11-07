@@ -187,7 +187,7 @@ int main(int argc, char* argv[]) {
         .help("the output path (.png)")
         .required();
     imageCommand.add_argument("--recommended", "-r")
-        .help("automatically applies --flash-attention")
+        .help("automatically applies --mmap and --flash-attention")
         .default_value(false)
         .implicit_value(true);
 
