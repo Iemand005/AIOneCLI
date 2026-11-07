@@ -178,15 +178,17 @@ int main(int argc, char* argv[]) {
         .scan<'i', int>()
         .default_value(512);
     imageCommand.add_argument("--positive", "-pos")
-        .help("the positive prompt for image generation (non-interactive mode)")
-        .required();
+        .help("the positive prompt for image generation (non-interactive mode)");
     imageCommand.add_argument("--negative", "-neg")
-        .help("the negative prompt for image generation (non-interactive mode)")
-        .required();
+        .help("the negative prompt for image generation (non-interactive mode)");
     imageCommand.add_argument("--progress")
         .help("shows progress in non-interactive mode")
         .default_value(false)
         .implicit_value(true);
+    imageCommand.add_argument("--preview")
+        .help("generates and saves a preview every step in non-interactive mode")
+        .choices("none", "vae", "tae", "proj")
+        .default_value(std::string("none"));
     imageCommand.add_argument("--output-path", "--output", "--filename", "-o")
         .help("the output path (.png)")
         .required();
@@ -348,6 +350,20 @@ int main(int argc, char* argv[]) {
             }
         });
     } else {
+        // string to enum for SDPreviewMode
+        SDPreviewMode previewMode;
+        std::string previewStr = localArgs->get<std::string>("--preview");
+        if (previewStr == "vae") {
+            previewMode = SDPreviewMode::VAE;
+        } else if (previewStr == "tae") {
+            previewMode = SDPreviewMode::TAE;
+        } else if (previewStr == "proj") {
+            previewMode = SDPreviewMode::Proj;
+        } else {
+            previewMode = SDPreviewMode::None;
+        }
+        
+
         TermSDModelManager modelManager(localArgs->get<std::string>("--model"));
         std::string posPrompt = "";
         std::string negPrompt = "";
@@ -395,7 +411,7 @@ int main(int argc, char* argv[]) {
             options.t5xxlPath = localArgs->get<std::string>("--t5xxl");
         }
 
-        modelManager.loadModel(hasPrompts, options, [hasPrompts, &defaultVal, &localArgs, posPrompt, negPrompt, &modelManager]() {
+        modelManager.loadModel(hasPrompts, options, [hasPrompts, &defaultVal, previewMode, &localArgs, posPrompt, negPrompt, &modelManager]() {
             if (hasPrompts) {
                 SDImageOptions imageOpts;
                 imageOpts.stepCount = defaultVal("--step-count", 1, 1);
@@ -407,7 +423,7 @@ int main(int argc, char* argv[]) {
                     imageOpts.seed = localArgs->get<int>("--seed");
                 }
 
-                modelManager.createImage(true, (!hasPrompts || localArgs->get<bool>("--progress")), posPrompt, negPrompt, localArgs->present<std::string>("--output-path"), imageOpts);
+                modelManager.createImage(true, (!hasPrompts || localArgs->get<bool>("--progress")), previewMode, posPrompt, negPrompt, localArgs->present<std::string>("--output-path"), imageOpts);
                 exitCli();
             } else {
                 interactive(true);
