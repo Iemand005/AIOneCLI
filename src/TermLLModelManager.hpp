@@ -14,6 +14,6 @@ public:
     void clear();
 
 private:
-    static void onModelLoadProgress(const float progress);
+    static void onModelLoadProgress(const float progress, const int step, const int steps);
     static void onModelLoadDone();
 };

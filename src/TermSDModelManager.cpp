@@ -26,9 +26,17 @@ void TermSDModelManager::loadModel(bool quiet, SDModelOptionsAsync options, Fini
     });
 }
 
-void TermSDModelManager::createImage(bool quiet, std::string positivePrompt, std::string negativePrompt, std::optional<std::string> filename, SDImageOptions options) {
+void TermSDModelManager::createImage(bool quiet, bool showProgress, std::string positivePrompt, std::string negativePrompt, std::optional<std::string> filename, SDImageOptions options) {
     SDModel *model = getSDM();
+    model->setProgressCallback([showProgress, &options](const float progress, const int step, const int steps) {
+        if (showProgress && steps == options.stepCount) {
+            std::cout << progress * 100 << "%" << std::endl;
+        }
+    });
+
     const SDImage image = model->generateImage(positivePrompt, negativePrompt, options);
+    model->clearProgressCallback();
+
     std::string actualFilename;
 
     if (filename.has_value()) {
@@ -41,7 +49,7 @@ void TermSDModelManager::createImage(bool quiet, std::string positivePrompt, std
     model->saveImageAsPNG(image, actualFilename);
 
     if (quiet) {
-        std::cout << actualFilename;
+        std::cout << actualFilename << std::flush;
     } else {
         std::cout << "  Saved image as " << ANSI::FG_GREEN << ANSI::BOLD << actualFilename << ANSI::RESET << std::endl;
     }
@@ -52,7 +60,7 @@ SDModel* TermSDModelManager::getSDM() {
 }
 
 
-void TermSDModelManager::onModelLoadProgress(const float progress) {
+void TermSDModelManager::onModelLoadProgress(const float progress, const int step, const int steps) {
     std::cout
         << ANSI::CARRIAGE_RETURN
         << ANSI::CLEAR_LINE

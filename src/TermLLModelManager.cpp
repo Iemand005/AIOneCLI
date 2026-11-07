@@ -46,7 +46,7 @@ void TermLLModelManager::sendMessage(std::string role, std::string text, bool ha
 }
 
 
-void TermLLModelManager::onModelLoadProgress(const float progress) {
+void TermLLModelManager::onModelLoadProgress(const float progress, const int step, const int steps) {
     std::cout
         << ANSI::CARRIAGE_RETURN
         << ANSI::CLEAR_LINE

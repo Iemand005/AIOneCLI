@@ -183,6 +183,10 @@ int main(int argc, char* argv[]) {
     imageCommand.add_argument("--negative", "-neg")
         .help("the negative prompt for image generation (non-interactive mode)")
         .required();
+    imageCommand.add_argument("--progress")
+        .help("shows progress in non-interactive mode")
+        .default_value(false)
+        .implicit_value(true);
     imageCommand.add_argument("--output-path", "--output", "--filename", "-o")
         .help("the output path (.png)")
         .required();
@@ -330,11 +334,11 @@ int main(int argc, char* argv[]) {
                 }
 
                 textOpts.onThinkStateChange = [](bool thinking) {
-                    std::cout << (thinking ? "<think>" : "</think>");
+                    std::cout << (thinking ? "<think>" : "</think>") << std::flush;
                 };
                 
                 textOpts.onToken = [](const std::string &token) {
-                    std::cout << token;
+                    std::cout << token << std::flush;
                 };
 
                 modelManager.sendMessage(localArgs->get<std::string>("--role"), prompt, hasSystemPrompt, systemPrompt, textOpts);
@@ -403,7 +407,7 @@ int main(int argc, char* argv[]) {
                     imageOpts.seed = localArgs->get<int>("--seed");
                 }
 
-                modelManager.createImage(true, posPrompt, negPrompt, localArgs->present<std::string>("--output-path"), imageOpts);
+                modelManager.createImage(true, (!hasPrompts || localArgs->get<bool>("--progress")), posPrompt, negPrompt, localArgs->present<std::string>("--output-path"), imageOpts);
                 exitCli();
             } else {
                 interactive(true);
