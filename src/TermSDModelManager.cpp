@@ -26,7 +26,7 @@ void TermSDModelManager::loadModel(bool quiet, SDModelOptionsAsync options, Fini
     });
 }
 
-void TermSDModelManager::createImage(bool quiet, bool showProgress, SDPreviewMode previewMode, std::string positivePrompt, std::string negativePrompt, std::optional<std::string> filename, SDImageOptions options) {
+void TermSDModelManager::createImage(bool quiet, bool showProgress, SDPreviewMode previewMode, bool previewNoise, std::string positivePrompt, std::string negativePrompt, std::optional<std::string> filename, SDImageOptions options) {
     SDModel *model = getSDM();
     model->setProgressCallback([showProgress, &options](const float progress, const int step, const int steps) {
         if (showProgress && steps == options.stepCount) {
@@ -44,8 +44,8 @@ void TermSDModelManager::createImage(bool quiet, bool showProgress, SDPreviewMod
     }
 
     if (previewMode != SDPreviewMode::None) {
-        model->setPreviewCallback([&model, &actualFilename](int step, SDImage* image, bool isNoisy) {
-            if (!isNoisy) {
+        model->setPreviewCallback([&model, &actualFilename, previewNoise](int step, SDImage* image, bool isNoisy) {
+            if (isNoisy == previewNoise) {
                 model->saveImageAsPNG(*image, actualFilename);
             }
         }, previewMode);

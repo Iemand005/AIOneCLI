@@ -187,7 +187,7 @@ int main(int argc, char* argv[]) {
         .implicit_value(true);
     imageCommand.add_argument("--preview")
         .help("generates and saves a preview every step in non-interactive mode")
-        .choices("none", "vae", "tae", "proj")
+        .choices("none", "vae", "vae-noise", "tae", "tae-noise", "proj", "proj-noise")
         .default_value(std::string("none"));
     imageCommand.add_argument("--output-path", "--output", "--filename", "-o")
         .help("the output path (.png)")
@@ -353,15 +353,17 @@ int main(int argc, char* argv[]) {
         // string to enum for SDPreviewMode
         SDPreviewMode previewMode;
         std::string previewStr = localArgs->get<std::string>("--preview");
-        if (previewStr == "vae") {
+        if (previewStr.starts_with("vae")) {
             previewMode = SDPreviewMode::VAE;
-        } else if (previewStr == "tae") {
+        } else if (previewStr.starts_with("tae")) {
             previewMode = SDPreviewMode::TAE;
-        } else if (previewStr == "proj") {
+        } else if (previewStr.starts_with("proj")) {
             previewMode = SDPreviewMode::Proj;
         } else {
             previewMode = SDPreviewMode::None;
         }
+        
+        bool previewNoise = previewStr.ends_with("-noise");
         
 
         TermSDModelManager modelManager(localArgs->get<std::string>("--model"));
@@ -411,7 +413,7 @@ int main(int argc, char* argv[]) {
             options.t5xxlPath = localArgs->get<std::string>("--t5xxl");
         }
 
-        modelManager.loadModel(hasPrompts, options, [hasPrompts, &defaultVal, previewMode, &localArgs, posPrompt, negPrompt, &modelManager]() {
+        modelManager.loadModel(hasPrompts, options, [hasPrompts, &defaultVal, previewMode, previewNoise, &localArgs, posPrompt, negPrompt, &modelManager]() {
             if (hasPrompts) {
                 SDImageOptions imageOpts;
                 imageOpts.stepCount = defaultVal("--step-count", 1, 1);
@@ -423,7 +425,7 @@ int main(int argc, char* argv[]) {
                     imageOpts.seed = localArgs->get<int>("--seed");
                 }
 
-                modelManager.createImage(true, (!hasPrompts || localArgs->get<bool>("--progress")), previewMode, posPrompt, negPrompt, localArgs->present<std::string>("--output-path"), imageOpts);
+                modelManager.createImage(true, (!hasPrompts || localArgs->get<bool>("--progress")), previewMode, previewNoise, posPrompt, negPrompt, localArgs->present<std::string>("--output-path"), imageOpts);
                 exitCli();
             } else {
                 interactive(true);
