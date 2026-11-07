@@ -16,7 +16,7 @@ void TermSDModelManager::loadModel(bool quiet, SDModelOptionsAsync options, Fini
         options.onProgress = onModelLoadProgress;
     }
 
-    factory.loadSDMAsync(modelPath, options, [this, quiet, &onDone = std::move(onDone)](SDModelPtr model) {
+    factory.loadSDMAsync(modelPath, options, [this, quiet, onDone = std::move(onDone)](SDModelPtr model) {
         if (!quiet) {
             onModelLoadDone();
         }
@@ -27,7 +27,8 @@ void TermSDModelManager::loadModel(bool quiet, SDModelOptionsAsync options, Fini
 }
 
 void TermSDModelManager::createImage(bool quiet, std::string positivePrompt, std::string negativePrompt, std::optional<std::string> filename, SDImageOptions options) {
-    SDImage &image = getSDM()->generateImage(positivePrompt, negativePrompt, options);
+    SDModel *model = getSDM();
+    const SDImage image = model->generateImage(positivePrompt, negativePrompt, options);
     std::string actualFilename;
 
     if (filename.has_value()) {
@@ -37,7 +38,7 @@ void TermSDModelManager::createImage(bool quiet, std::string positivePrompt, std
         actualFilename = std::to_string(ms) + ".png";
     }
     
-    getSDM()->saveImageAsPNG(image, actualFilename);
+    model->saveImageAsPNG(image, actualFilename);
 
     if (quiet) {
         std::cout << actualFilename;

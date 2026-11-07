@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(AIOneCLII VERSION 1.0.0 LANGUAGES C CXX)
+project(AIOneCLI VERSION 1.0.0 LANGUAGES C CXX)
 
 # Generate version file
 configure_file(
@@ -20,7 +20,9 @@ set(HWINFO_NETWORK OFF CACHE BOOL "" FORCE)
 
 # For metaproject
 set(GIT_EXECUTABLE "GIT_EXECUTABLE-NOTFOUND" CACHE FILEPATH "Disable Git tracking in dependencies" FORCE)
-add_subdirectory("../AIOne" "${CMAKE_CURRENT_BINARY_DIR}/AIOne")
+if(NOT TARGET AIOneCore)
+    add_subdirectory("../AIOne" "${CMAKE_CURRENT_BINARY_DIR}/AIOne")
+endif()
 
 # Dependencies
 add_subdirectory("external/argparse" "${CMAKE_CURRENT_BINARY_DIR}/external_argparse")

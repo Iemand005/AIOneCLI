@@ -75,7 +75,37 @@ int main(int argc, char* argv[]) {
     SetConsoleOutputCP(CP_UTF8);
 #endif
 
+    auto applyDefaultArgs = [](argparse::ArgumentParser &parser) {
+        parser.add_argument("-m", "--model")
+            .help("path to the model file")
+            .required();
+        parser.add_argument("--mmap")
+            .help("enables mmap for model loading")
+            .default_value(false)
+            .implicit_value(true);
+        parser.add_argument("--flash-attn", "--flash-attention")
+            .help("enables flash attention for inference")
+            .default_value(false)
+            .implicit_value(true);
+        parser.add_argument("--threads", "--cores", "-t")
+            .help("how many CPU threads to use for inference")
+            .scan<'i', int>()
+            .default_value(-1);
+        parser.add_argument("--temperature", "--temp")
+            .help("set temperature for inference")
+            .scan<'g', float>()
+            .default_value(0.7f);
+        parser.add_argument("--seed")
+            .help("set seed for inference")
+            .scan<'i', int>();
+        parser.add_argument("--no-logo", "--quiet", "-q")
+            .help("hides the startup logo and info")
+            .default_value(false)
+            .implicit_value(true);
+    };
+
     argparse::ArgumentParser textCommand("text");
+    applyDefaultArgs(textCommand);
     textCommand.add_argument("-d", "--device")
         .help("preferred device to use for inference")
         .choices("any", "cpu", "igpu", "integrated-gpu", "dgpu", "dedicated-gpu", "accel", "accelerator")
@@ -119,18 +149,38 @@ int main(int argc, char* argv[]) {
 
 
     argparse::ArgumentParser imageCommand("image");
+    applyDefaultArgs(imageCommand);
+    imageCommand.add_argument("--backend", "-b")
+        .help("preferred backend to use for inference (cpu, gpu, cuda0, vulkan0, metal)")
+        .default_value(std::string(""));
+    imageCommand.add_argument("--vae")
+        .help("path to the vae file");
+    imageCommand.add_argument("--clip-g", "-cg")
+        .help("path to the clip_g file");
+    imageCommand.add_argument("--clip-l", "-cl")
+        .help("path to the clip_l file");
+    imageCommand.add_argument("--t5xxl", "-t5")
+        .help("path to the t5xxl file");
     imageCommand.add_argument("--step-count", "--steps", "-s")
         .help("amount of steps to generate image")
         .scan<'i', int>()
         .default_value(25);
-    imageCommand.add_argument("--cfg-cale", "-cfg")
+    imageCommand.add_argument("--cfg-scale", "-cfg")
         .help("the classifier-free guidance scale")
         .scan<'g', float>()
         .default_value(6.0f);
-    imageCommand.add_argument("-pos", "--positive")
+    imageCommand.add_argument("--width", "-w")
+        .help("resulting image width")
+        .scan<'i', int>()
+        .default_value(512);
+    imageCommand.add_argument("--height", "-h")
+        .help("resulting image height")
+        .scan<'i', int>()
+        .default_value(512);
+    imageCommand.add_argument("--positive", "-pos")
         .help("the positive prompt for image generation (non-interactive mode)")
         .required();
-    imageCommand.add_argument("-neg", "--negative")
+    imageCommand.add_argument("--negative", "-neg")
         .help("the negative prompt for image generation (non-interactive mode)")
         .required();
     imageCommand.add_argument("--output-path", "--output", "--filename", "-o")
@@ -143,33 +193,8 @@ int main(int argc, char* argv[]) {
 
 
     argparse::ArgumentParser program("AIOneCLI", AIONE_CLI_VERSION.c_str());
+    program.add_subparser(textCommand);
     program.add_subparser(imageCommand);
-    program.add_argument("-m", "--model")
-        .help("path to the model file")
-        .required();
-    program.add_argument("--mmap")
-        .help("enables mmap for model loading")
-        .default_value(false)
-        .implicit_value(true);
-    program.add_argument("--flash-attn", "--flash-attention")
-        .help("enables flash attention for inference")
-        .default_value(false)
-        .implicit_value(true);
-    program.add_argument("--threads", "--cores", "-t")
-        .help("how many CPU threads to use for inference")
-        .scan<'i', int>()
-        .default_value(-1);
-    program.add_argument("--temperature", "--temp")
-        .help("set temperature for inference")
-        .scan<'g', float>()
-        .default_value(0.7f);
-    program.add_argument("--seed")
-        .help("set seed for inference")
-        .scan<'i', int>();
-    program.add_argument("--no-logo", "--quiet", "-q")
-        .help("hides the startup logo and info")
-        .default_value(false)
-        .implicit_value(true);
 
     try {
         program.parse_args(argc, argv);
@@ -198,23 +223,9 @@ int main(int argc, char* argv[]) {
 
     argparse::ArgumentParser *localArgs = (imageMode ? &imageCommand : &textCommand);
 
-    auto defaultVal = [&](std::string opt, auto minVal, auto defVal) {
-        argparse::ArgumentParser *which = localArgs;
-
-        if (
-            opt == "--model"
-            || opt == "--mmap"
-            || opt == "--flash-attention"
-            || opt == "--threads"
-            || opt == "--temperature"
-            || opt == "--seed"
-            || opt == "--no-logo"
-        ) {
-            which = &program;
-        }
-
+    auto defaultVal = [&localArgs](std::string opt, auto minVal, auto defVal) {
         using T = decltype(minVal);
-        T val = which->get<T>(opt);
+        T val = localArgs->get<T>(opt);
 
         return val < minVal ? defVal : val;
     };
@@ -239,18 +250,12 @@ int main(int argc, char* argv[]) {
 
     bool recommended = localArgs->get<bool>("--recommended");
 
-    auto applyRecommended = [&](std::string opt) {
+    auto applyRecommended = [recommended, &localArgs](std::string opt) {
         if (recommended) {
             return true;
         }
 
-        argparse::ArgumentParser *which = localArgs;
-
-        if (opt == "--mmap") {
-            which = &program;
-        }
-
-        return which->get<bool>(opt);
+        return localArgs->get<bool>(opt);
     };
 
 
@@ -291,9 +296,9 @@ int main(int argc, char* argv[]) {
         }
 
         
-        TermLLModelManager modelManager(program.get<std::string>("--model"));
+        TermLLModelManager modelManager(localArgs->get<std::string>("--model"));
 
-        if (!hasPrompt && !program.get<bool>("--no-logo")) {
+        if (!hasPrompt && !localArgs->get<bool>("--no-logo")) {
             printLogo();
         }
         
@@ -305,7 +310,7 @@ int main(int argc, char* argv[]) {
         options.flashAttention = applyRecommended("--flash-attention");
         options.contextLength = defaultVal("--context-size", 1, 1024);
         options.evalBatchSize = defaultVal("--batch-size", 1, 512);
-        modelManager.loadModel(hasPrompt, options, [&]() {
+        modelManager.loadModel(hasPrompt, options, [hasPrompt, &defaultVal, &localArgs, &modelManager, prompt]() {
             if (hasPrompt) {
                 TextGenOptions textOpts;
                 textOpts.maxTokens = defaultVal("--max-tokens", 0, -1);
@@ -313,8 +318,8 @@ int main(int argc, char* argv[]) {
                 textOpts.topK = defaultVal("--top-k", 0, 0);
                 textOpts.temperature = defaultVal("--temperature", 0.0f, 0.0f);
 
-                if (program.is_used("--seed")) {
-                    textOpts.seed = program.get<int>("--seed");
+                if (localArgs->is_used("--seed")) {
+                    textOpts.seed = localArgs->get<int>("--seed");
                 }
 
                 std::string systemPrompt;
@@ -339,7 +344,7 @@ int main(int argc, char* argv[]) {
             }
         });
     } else {
-        TermSDModelManager modelManager(program.get<std::string>("--model"));
+        TermSDModelManager modelManager(localArgs->get<std::string>("--model"));
         std::string posPrompt = "";
         std::string negPrompt = "";
         bool hasPrompts = false;
@@ -354,7 +359,7 @@ int main(int argc, char* argv[]) {
             hasPrompts = true;
         }
 
-        if (!hasPrompts && !program.get<bool>("--no-logo")) {
+        if (!hasPrompts && !localArgs->get<bool>("--no-logo")) {
             ggml_time_init();
             
             if (!ggml_backend_reg_count()) {
@@ -368,16 +373,38 @@ int main(int argc, char* argv[]) {
         options.useMmap = applyRecommended("--mmap");
         options.threadCount = cpuCores;
         options.flashAttention = applyRecommended("--flash-attention");
-        modelManager.loadModel(hasPrompts, options, [&]() {
+        options.backend = localArgs->get<std::string>("--backend");
+
+        if (localArgs->is_used("--vae")) {
+            options.vaePath = localArgs->get<std::string>("--vae");
+        }
+        
+        if (localArgs->is_used("--clip-g")) {
+            options.clipGPath = localArgs->get<std::string>("--clip-g");
+        }
+        
+        if (localArgs->is_used("--clip-l")) {
+            options.clipLPath = localArgs->get<std::string>("--clip-l");
+        }
+        
+        if (localArgs->is_used("--t5xxl")) {
+            options.t5xxlPath = localArgs->get<std::string>("--t5xxl");
+        }
+
+        modelManager.loadModel(hasPrompts, options, [hasPrompts, &defaultVal, &localArgs, posPrompt, negPrompt, &modelManager]() {
             if (hasPrompts) {
                 SDImageOptions imageOpts;
                 imageOpts.stepCount = defaultVal("--step-count", 1, 1);
-                imageOpts.cfgScale = defaultVal("--cfg-scale", 0, 0);
+                imageOpts.cfgScale = defaultVal("--cfg-scale", 0.0f, 0.0f);
+                imageOpts.width = defaultVal("--width", 64, 64);
+                imageOpts.height = defaultVal("--height", 64, 64);
 
-                if (program.is_used("--seed")) {
-                    imageOpts.seed = program.get<int>("--seed");
+                if (localArgs->is_used("--seed")) {
+                    imageOpts.seed = localArgs->get<int>("--seed");
                 }
 
+                std::cout << posPrompt << std::endl;
+                std::cout << negPrompt << std::endl;
                 modelManager.createImage(true, posPrompt, negPrompt, localArgs->present<std::string>("--output-path"), imageOpts);
                 exitCli();
             } else {

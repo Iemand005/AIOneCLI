@@ -5,7 +5,7 @@
 class TermLLModelManager {
 public:
     const std::string modelPath;
-    ModelManager manager;
+    AIOne::ModelManager manager;
 
     explicit TermLLModelManager(const std::string& path);
 

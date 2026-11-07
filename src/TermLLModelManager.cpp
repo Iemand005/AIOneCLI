@@ -15,7 +15,7 @@ void TermLLModelManager::loadModel(bool quiet, LLModelOptionsAsync options, Fini
         options.onProgress = onModelLoadProgress;
     }
 
-    options.onDone = [this, quiet, &onDone = std::move(onDone)]() {
+    options.onDone = [this, quiet, onDone = std::move(onDone)]() {
         if (!quiet) {
             onModelLoadDone();
         }
