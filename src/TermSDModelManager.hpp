@@ -11,7 +11,7 @@ public:
 
     void loadModel(bool quiet, SDModelOptionsAsync options, FinishedCallback onDone);
     void createImage(bool quiet, bool showProgress, SDPreviewMode previewMode, bool previewNoise, std::string positivePrompt, std::string negativePrompt, std::optional<std::string> filename, SDImageOptions options);
-    SDModel* getSDM();
+    SDModel *getSDM();
 
 private:
     static void onModelLoadProgress(const float progress, const int step, const int steps);

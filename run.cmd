@@ -1,7 +1,5 @@
 @echo off
-cd build/Debug/
-AIOneCLI.exe %* & call :ignoreCtrlC
-cd ../..
+.\build\Debug\AIOneCLI.exe %* & call :ignoreCtrlC
 goto :eof
 
 :ignoreCtrlC

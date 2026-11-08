@@ -17,6 +17,7 @@
 
 #include "TermLLModelManager.hpp"
 #include "TermSDModelManager.hpp"
+#include "TermTTSModelManager.hpp"
 #include "ANSI.hpp"
 #include "Version.hpp"
 
@@ -79,10 +80,6 @@ int main(int argc, char* argv[]) {
         parser.add_argument("-m", "--model")
             .help("path to the model file")
             .required();
-        parser.add_argument("--mmap")
-            .help("enables mmap for model loading")
-            .default_value(false)
-            .implicit_value(true);
         parser.add_argument("--flash-attn", "--flash-attention")
             .help("enables flash attention for inference")
             .default_value(false)
@@ -91,10 +88,6 @@ int main(int argc, char* argv[]) {
             .help("how many CPU threads to use for inference")
             .scan<'i', int>()
             .default_value(-1);
-        parser.add_argument("--temperature", "--temp")
-            .help("set temperature for inference")
-            .scan<'g', float>()
-            .default_value(0.7f);
         parser.add_argument("--seed")
             .help("set seed for inference")
             .scan<'i', int>();
@@ -106,6 +99,14 @@ int main(int argc, char* argv[]) {
 
     argparse::ArgumentParser textCommand("text");
     applyDefaultArgs(textCommand);
+    textCommand.add_argument("--mmap")
+        .help("enables mmap for model loading")
+        .default_value(false)
+        .implicit_value(true);
+    textCommand.add_argument("--temperature", "--temp")
+        .help("set temperature for inference")
+        .scan<'g', float>()
+        .default_value(0.7f);
     textCommand.add_argument("-d", "--device")
         .help("preferred device to use for inference")
         .choices("any", "cpu", "igpu", "integrated-gpu", "dgpu", "dedicated-gpu", "accel", "accelerator")
@@ -150,6 +151,14 @@ int main(int argc, char* argv[]) {
 
     argparse::ArgumentParser imageCommand("image");
     applyDefaultArgs(imageCommand);
+    imageCommand.add_argument("--mmap")
+        .help("enables mmap for model loading")
+        .default_value(false)
+        .implicit_value(true);
+    imageCommand.add_argument("--temperature", "--temp")
+        .help("set temperature for inference")
+        .scan<'g', float>()
+        .default_value(0.7f);
     imageCommand.add_argument("--backend", "-b")
         .help("preferred backend to use for inference (cpu, gpu, cuda0, vulkan0, metal)")
         .default_value(std::string(""));
@@ -198,9 +207,66 @@ int main(int argc, char* argv[]) {
         .implicit_value(true);
 
 
+    argparse::ArgumentParser ttsCommand("tts");
+    applyDefaultArgs(ttsCommand);
+    ttsCommand.add_argument("-d", "--device")
+        .help("preferred device to use for inference")
+        .choices("any", "cpu", "igpu", "integrated-gpu", "dgpu", "dedicated-gpu", "accel", "accelerator")
+        .default_value(std::string("any"));
+    ttsCommand.add_argument("--mmproj", "-mm")
+        .help("path to the mmproj file")
+        .required();
+    ttsCommand.add_argument("--voice-name", "-v")
+        .help("name of the built-in voice");
+    ttsCommand.add_argument("--voice-index", "-vi")
+        .help("index of the built-in voice")
+        .scan<'i', int>()
+        .default_value(0);
+    ttsCommand.add_argument("--voice-file", "-vf")
+        .help("path to the reference voice file");
+    ttsCommand.add_argument("--batch-size", "--batch", "-bs")
+        .help("evaluation batch size for prompt processing")
+        .scan<'i', int>()
+        .default_value(512);
+    ttsCommand.add_argument("--max-tokens", "-max")
+        .help("how many tokens the model can generate")
+        .scan<'i', int>()
+        .default_value(4096);
+    ttsCommand.add_argument("--top-p")
+        .help("set top p for inference")
+        .scan<'g', float>()
+        .default_value(1.0f);
+    ttsCommand.add_argument("--top-k")
+        .help("set top k for inference")
+        .scan<'i', int>()
+        .default_value(50);
+    ttsCommand.add_argument("--lang")
+        .help("set language of text")
+        .default_value(std::string(""));
+    ttsCommand.add_argument("--progress")
+        .help("shows progress in non-interactive mode")
+        .default_value(false)
+        .implicit_value(true);
+    // ttsCommand.add_argument("--preview")
+    //     .help("generates and saves a preview every frame in non-interactive mode")
+    //     .default_value(false)
+    //     .implicit_value(true);
+    ttsCommand.add_argument("--output-path", "--output", "--filename", "-o")
+        .help("the output path (.wav)")
+        .required();
+    ttsCommand.add_argument("--recommended", "-r")
+        .help("automatically applies --flash-attention")
+        .default_value(false)
+        .implicit_value(true);
+    ttsCommand.add_argument("prompt")
+        .help("the prompt to send (non-interactive mode)")
+        .remaining();
+
+
     argparse::ArgumentParser program("AIOneCLI", AIONE_CLI_VERSION.c_str());
     program.add_subparser(textCommand);
     program.add_subparser(imageCommand);
+    program.add_subparser(ttsCommand);
 
     try {
         program.parse_args(argc, argv);
@@ -211,8 +277,10 @@ int main(int argc, char* argv[]) {
     }
 
     
+    const bool textMode = program.is_subcommand_used("text");
     const bool imageMode = program.is_subcommand_used("image");
-    if (!imageMode && !program.is_subcommand_used("text")) {
+    const bool ttsMode = program.is_subcommand_used("tts");
+    if (!ttsMode && !imageMode && !textMode) {
         std::cout << program << std::endl;
         return 1;
     }
@@ -226,8 +294,17 @@ int main(int argc, char* argv[]) {
     }
 #endif
 
+#ifndef AIONE_ENABLE_TTS
+    if (ttsMode) {
+        std::cerr
+            << "AIONE_ENABLE_TTS = OFF" << std::endl
+            << "TTS support disabled for this build!" << std::endl;
+        return 2;
+    }
+#endif
 
-    argparse::ArgumentParser *localArgs = (imageMode ? &imageCommand : &textCommand);
+
+    argparse::ArgumentParser *localArgs = (ttsMode ? &ttsCommand : (imageMode ? &imageCommand : &textCommand));
 
     auto defaultVal = [&localArgs](std::string opt, auto minVal, auto defVal) {
         using T = decltype(minVal);
@@ -264,10 +341,9 @@ int main(int argc, char* argv[]) {
         return localArgs->get<bool>(opt);
     };
 
-
-    if (!imageMode) {
+    PreferredDevice device;
+    if (imageMode || ttsMode) {
         // string to enum for PreferredDevice
-        PreferredDevice device;
         std::string deviceStr = localArgs->get<std::string>("--device");
         if (deviceStr == "cpu") {
             device = PreferredDevice::CPU;
@@ -280,8 +356,9 @@ int main(int argc, char* argv[]) {
         } else {
             device = PreferredDevice::ANY;
         }
+    }
 
-
+    if (textMode) {
         std::string prompt = "";
         bool hasPrompt = false;
 
@@ -349,10 +426,12 @@ int main(int argc, char* argv[]) {
                 interactive(false);
             }
         });
-    } else {
+    } else if (imageMode) {
         // string to enum for SDPreviewMode
         SDPreviewMode previewMode;
         std::string previewStr = localArgs->get<std::string>("--preview");
+        bool previewNoise = previewStr.ends_with("-noise");
+        
         if (previewStr.starts_with("vae")) {
             previewMode = SDPreviewMode::VAE;
         } else if (previewStr.starts_with("tae")) {
@@ -362,8 +441,6 @@ int main(int argc, char* argv[]) {
         } else {
             previewMode = SDPreviewMode::None;
         }
-        
-        bool previewNoise = previewStr.ends_with("-noise");
         
 
         TermSDModelManager modelManager(localArgs->get<std::string>("--model"));
@@ -426,6 +503,76 @@ int main(int argc, char* argv[]) {
                 }
 
                 modelManager.createImage(true, (!hasPrompts || localArgs->get<bool>("--progress")), previewMode, previewNoise, posPrompt, negPrompt, localArgs->present<std::string>("--output-path"), imageOpts);
+                exitCli();
+            } else {
+                interactive(true);
+            }
+        });
+    } else if (ttsMode) {
+        int i = 0;
+        std::cout << ++i << std::endl;
+        std::string prompt = "";
+        bool hasPrompt = false;
+
+        try {
+            auto rest = localArgs->get<std::vector<std::string>>("prompt");
+            
+            for (const auto &arg : rest) {
+                if (prompt != "") {
+                    prompt += " ";
+                }
+                
+                prompt += arg;
+            }
+
+            hasPrompt = true;
+        } catch (const std::logic_error &e) {
+            // no prompt
+        }
+
+        std::cout << ++i << std::endl;
+
+        TermTTSModelManager modelManager(localArgs->get<std::string>("--model"), localArgs->get<std::string>("--mmproj"));
+
+        if (!hasPrompt && !localArgs->get<bool>("--no-logo")) {
+            ggml_time_init();
+            
+            if (!ggml_backend_reg_count()) {
+                ggml_backend_load_all();
+            }
+            
+            printLogo();
+        }
+        
+        std::cout << ++i << std::endl;
+        TTSModelOptionsAsync options;
+        options.device = device;
+        options.threadCount = cpuCores;
+        options.flashAttention = applyRecommended("--flash-attention");
+
+        std::cout << ++i << std::endl;
+        modelManager.loadModel(hasPrompt, options, {}, [hasPrompt, &defaultVal, &localArgs, prompt, &modelManager]() {
+            if (hasPrompt) {
+                TTSSynthesisOptions ttsOpts;
+                ttsOpts.maxTokens = defaultVal("--max-tokens", 0, -1);
+                ttsOpts.topP = defaultVal("--top-p", 0.0f, 0.0f);
+                ttsOpts.topK = defaultVal("--top-k", 0, 0);
+                ttsOpts.lang = localArgs->get<std::string>("--lang");
+                ttsOpts.batchSize = defaultVal("--batch-size", 1, 512);
+                
+                if (localArgs->is_used("--voice-file")) {
+                    ttsOpts.voice.referenceFile = localArgs->get<std::string>("--voice-file");
+                } else if (localArgs->is_used("--voice-name")) {
+                    ttsOpts.voice.builtInName = localArgs->get<std::string>("--voice-name");
+                } else {
+                    ttsOpts.voice.builtInIndex = localArgs->get<int>("--voice-index");
+                }
+
+                if (localArgs->is_used("--seed")) {
+                    ttsOpts.seed = localArgs->get<int>("--seed");
+                }
+
+                modelManager.synthesize(true, (!hasPrompt || localArgs->get<bool>("--progress")), prompt, localArgs->present<std::string>("--output-path"), ttsOpts);
                 exitCli();
             } else {
                 interactive(true);

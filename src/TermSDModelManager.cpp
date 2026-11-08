@@ -62,7 +62,7 @@ void TermSDModelManager::createImage(bool quiet, bool showProgress, SDPreviewMod
     }
 }
 
-SDModel* TermSDModelManager::getSDM() {
+SDModel *TermSDModelManager::getSDM() {
     return model.get();
 }
 
