@@ -509,8 +509,6 @@ int main(int argc, char* argv[]) {
             }
         });
     } else if (ttsMode) {
-        int i = 0;
-        std::cout << ++i << std::endl;
         std::string prompt = "";
         bool hasPrompt = false;
 
@@ -530,7 +528,6 @@ int main(int argc, char* argv[]) {
             // no prompt
         }
 
-        std::cout << ++i << std::endl;
 
         TermTTSModelManager modelManager(localArgs->get<std::string>("--model"), localArgs->get<std::string>("--mmproj"));
 
@@ -540,17 +537,15 @@ int main(int argc, char* argv[]) {
             if (!ggml_backend_reg_count()) {
                 ggml_backend_load_all();
             }
-            
+
             printLogo();
         }
         
-        std::cout << ++i << std::endl;
         TTSModelOptionsAsync options;
         options.device = device;
         options.threadCount = cpuCores;
         options.flashAttention = applyRecommended("--flash-attention");
 
-        std::cout << ++i << std::endl;
         modelManager.loadModel(hasPrompt, options, {}, [hasPrompt, &defaultVal, &localArgs, prompt, &modelManager]() {
             if (hasPrompt) {
                 TTSSynthesisOptions ttsOpts;
