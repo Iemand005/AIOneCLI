@@ -258,6 +258,11 @@ int main(int argc, char* argv[]) {
         .help("automatically applies --flash-attention")
         .default_value(false)
         .implicit_value(true);
+#ifdef AIONE_ENABLE_TTS_INSTRUCT
+    ttsCommand.add_argument("--instruction", "--instruct", "-i")
+        .help("set instruction for voice generation or modification")
+        .default_value(std::string(""));
+#endif
     ttsCommand.add_argument("prompt")
         .help("the prompt to send (non-interactive mode)")
         .remaining();
@@ -566,6 +571,12 @@ int main(int argc, char* argv[]) {
                 if (localArgs->is_used("--seed")) {
                     ttsOpts.seed = localArgs->get<int>("--seed");
                 }
+                
+#ifdef AIONE_ENABLE_TTS_INSTRUCT
+                if (localArgs->is_used("--instruction")) {
+                    ttsOpts.instruction = localArgs->get<std::string>("--instruction");
+                }
+#endif
 
                 modelManager.synthesize(true, (!hasPrompt || localArgs->get<bool>("--progress")), prompt, localArgs->present<std::string>("--output-path"), ttsOpts);
                 exitCli();
